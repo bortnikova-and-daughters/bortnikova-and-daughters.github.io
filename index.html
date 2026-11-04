@@ -728,12 +728,13 @@ async function loadPeg(GLTFLoader) {
   pegs.visible = true; wake();
 }
 
-// ---------- Кресло (её выбор 30 окт: «Кресло из миллиметровки», 26 окт; голубая миллиметровка, ножки из бумаги) ----------
-// Внутри куба посередине, лицом к передней грани с работами. Пока просто стоит.
-// 1 нояб.: «кресло пока убери» — ?kreslo вернёт
-const chairReady = !P.has('kreslo') ? Promise.resolve() : import('./кресло-лист.js').then(m => m.chairSheet(THREE)).then(({ group }) => {
-  group.position.set(num('kx', S / 2), 0, num('kz', S / 2)); group.rotation.y = 0;
-  scene.add(group); wake();
+// ---------- Кресло из листа по её чертежу 1 нояб. — то, что в ролике «ружа» (её слово 4 нояб.: «вот это вот кресло поставить
+// в центр куба… на пол в центр… на нижнюю часть») ----------
+// Середина следа — в центре пола куба, ножки — на полу (y = 0), лицом к передней грани с работами. ?kreslo=0 — без кресла.
+// Прежнее (чертёж 2022, кресло-лист.js) убрано её словом 1 нояб.: «кресло пока убери».
+const chairReady = P.get('kreslo') === '0' ? Promise.resolve() : import('./кресло-диван.js').then(m => m.chairSofa(THREE, renderer, { mm: small ? 0.7 : 0.5 })).then(({ group, info }) => {
+  group.position.set(num('kx', S / 2), 0, num('kz', S / 2)); group.rotation.y = num('kr', 0) * Math.PI / 180;
+  scene.add(group); window.__chair = { group, info }; wake();
 }).catch(e => console.warn('кресло не загрузилось', e));
 
 // ---------- РАБОТЫ В РАМАХ СО ШТАМПАМИ (её решение 31 окт: «вот там у нас 33 слезы стоит. Ты поставь фрагменты…
