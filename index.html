@@ -758,7 +758,11 @@ const HANG = [
   // размеру листа. Овал проёма 130 × 180 — по листу 125 × 175: сухарики закрывают рваный край, видна ваза (её слово:
   // «главное подать красивую работу… рваный край чуть-чуть видно, но не сохранять… квадрат в овале — не надо»);
   // за листом — бумага; между рамами 40 мм; штамп один на пару — продаются только вместе
-  { name: 'Две вазы', face: 'x', s: 2.5, frames: [
+  // 4 нояб. — на передней грани над маминым «Первым морем» (её слово: «две вазы поставить над маминой работой… чтобы
+  // сравнялось с фрагментами»): верх овалов вровень с верхом рамы «Фрагментов» — 1200 + 130 + 1160 + 130 = 2620 мм;
+  // низ овалов 2620 − 310 = 2310 (y); между рамами 325 мм — штамп ваз (40 + 165) помещается, над «Морем» 120 мм воздуха.
+  // s 4,06, а не 4,055 (середина «Моря»): левый край рамы — на сантиметровой линии (3 780), сдвиг 5 мм глазу не виден
+  { name: 'Две вазы', face: 'z', s: 4.06, y: 2.31, frames: [
       { dx: -0.15, oval: true, ks: 0.5, open: [0.13, 0.18], sheets: [{ img: 'vase-1-face.webp', w: 0.125, h: 0.175, dx: 0.0005, dy: 0.0005 }] },
       { dx: 0.15, oval: true, ks: 0.5, open: [0.13, 0.18], sheets: [{ img: 'vase-2-face.webp', w: 0.125, h: 0.175, dx: 0.0005, dy: 0.0005 }] }],
     d: { title: 'ДВЕ ВАЗЫ', author: 'АННА Д’АРЛЕТ', material: 'АКВАРЕЛЬ, БУМАГА', size: '125 × 175', sheets: 2, price: '360 €' } },
@@ -830,7 +834,8 @@ const tearsReady = (async () => {
     const sx = right - STAMP.W, sy = -0.04;
     st.group.position.set(sx, sy, 0.001);
     g.add(st.group);
-    g.position.copy(onFace(wk.face, wk.s, 1.2, 0.001)); if (wk.face === 'x') g.rotation.y = Math.PI / 2;
+    const Y0 = wk.y ?? 1.2;                          // низ рам: 1200 мм (её слово 1 нояб.), у ваз — своя
+    g.position.copy(onFace(wk.face, wk.s, Y0, 0.001)); if (wk.face === 'x') g.rotation.y = Math.PI / 2;
     // выноска «СНЯТЬ РАМУ» у левого нижнего угла рамы — снимает и возвращает раму этой работы
     const note = buildNote(THREE, { glow: fg, lines: num('ink', 0.9) });
     note.group.position.set(left, 0, 0.001); g.add(note.group); notes.push(note);
@@ -852,7 +857,7 @@ const tearsReady = (async () => {
       links.push({ hover: on => st.hover(on), label: 'Купить — написать в Директ', normal: new THREE.Vector3(0, 0, 1).applyQuaternion(g.quaternion),
         corners: [[B.x0, B.y0], [B.x1, B.y0], [B.x1, B.y1], [B.x0, B.y1]].map(([x, y]) => new THREE.Vector3(sx + x * k, sy - y * k, 0.001).applyMatrix4(g.matrixWorld)) });
     }
-    aims.push({ face: wk.face, s0: wk.s + left - 0.315, s1: wk.s + right, y0: 1.2 - 0.04 - STAMP.H, y1: 1.2 + hiTop });   // с выноской
+    aims.push({ face: wk.face, s0: wk.s + left - 0.315, s1: wk.s + right, y0: Y0 - 0.04 - STAMP.H, y1: Y0 + hiTop });   // с выноской
     { const a = aims[aims.length - 1], m = 0.03, list = (a.face === 'z' ? RECTS_Z : RECTS_X).value, i = aims.filter(b => b.face === a.face).length - 1;
       if (i < 6) list[i].set(a.face === 'z' ? a.s0 - m : S - a.s1 - m, a.face === 'z' ? a.s1 + m : S - a.s0 + m, a.y0 - m, a.y1 + m); }
   }
