@@ -267,7 +267,7 @@ float family(float x, float g, vec4 L, float t0, float seed, float coc, float al
 float border(float x, float g, float along, float axis, float coc, float alongMm, float hid, vec3 nAdj, vec3 rd, float gI) {
   // ребро — общее у двух граней, каждая рисует свою половину; вид ребра — по обеим: обе видны — внутреннее,
   // одна видна — контур, обе скрыты — пунктир. Переходы плавные, как и у граней.
-  float adjVis = uOutside > .5 ? smoothstep(.035, -.035, dot(nAdj, rd)) : 1., myVis = 1. - hid;
+  float adjVis = mix(1., smoothstep(.035, -.035, dot(nAdj, rd)), uOutside), myVis = 1. - hid;
   float contour = myVis * (1. - adjVis) + hid * adjVis, inner = myVis * adjVis, hidden = hid * (1. - adjVis);
   float rank = contour + .72 * inner;                               // контур 0,70 · внутреннее 0,50 · пунктир 0,35
   float d = min(x, uSmm - x) / g, wc = max(uEdgeW / g, 2.6 * (rank + .5 * hidden)), wt = sqrt(wc * wc + coc * coc);
@@ -294,7 +294,10 @@ void main() {
     e += uLv[i].w * (family(vMm.x, g1, uLv[i], uLt[i], sd, coc, vMm.y, hid, gI) + family(vMm.y, g2, uLv[i], uLt[i], sd + 57., coc, vMm.x, hid, gI));
   }
   vec3 n1 = (vMm.x < uSmm * .5 ? -1. : 1.) * axisVec(vAx.x), n2 = (vMm.y < uSmm * .5 ? -1. : 1.) * axisVec(vAx.y);
-  e += uEdgeR * (border(vMm.x, g1, vMm.y / uSmm, vAx.y, coc, vMm.y, hid, n1, rd, gI) + border(vMm.y, g2, vMm.x / uSmm, vAx.x, coc, vMm.x, hid, n2, rd, gI));
+  // ребро у самого глаза гаснет (6 нояб.: глаз пролетал мимо ближнего ребра, и оно раздувалось светящейся полосой
+  // во весь экран — «как-то улетает»); дальше 0,8 м — как было
+  float nearF = uOrtho > .5 ? 1. : smoothstep(.15, .8, length(vW - uEye));
+  e += uEdgeR * nearF * (border(vMm.x, g1, vMm.y / uSmm, vAx.y, coc, vMm.y, hid, n1, rd, gI) + border(vMm.y, g2, vMm.x / uSmm, vAx.x, coc, vMm.x, hid, n2, rd, gI));
   e += uFill * gShade * mix(1., .1, hid) * smoothstep(1.2, 2.2, uT);   // своя заливка граней — тон тела
   e *= clamp(.577 / max(abs(dot(rd, vN)), .05), .8, 1.25);         // вскользь — чуть гуще
   // СВЕТ ПО ГЛУБИНЕ (её наблюдение 30 окт: «ближе к нам сильнее светится, а к дальним краям размывается, фон
@@ -732,9 +735,15 @@ async function loadPeg(GLTFLoader) {
 // в центр куба… на пол в центр… на нижнюю часть») ----------
 // Середина следа — в центре пола куба, ножки — на полу (y = 0), лицом к передней грани с работами. ?kreslo=0 — без кресла.
 // Прежнее (чертёж 2022, кресло-лист.js) убрано её словом 1 нояб.: «кресло пока убери».
+let chairPts = null;
 const chairReady = P.get('kreslo') === '0' ? Promise.resolve() : import('./кресло-диван.js').then(m => m.chairSofa(THREE, renderer, { mm: small ? 0.7 : 0.5 })).then(({ group, info }) => {
   group.position.set(num('kx', S / 2), 0, num('kz', S / 2)); group.rotation.y = num('kr', 0) * Math.PI / 180;
   scene.add(group); window.__chair = { group, info }; wake();
+  // точки кресла в мире (около 1 на 2 см) — куда целиться приближению, когда пальцы на кресле
+  group.updateMatrixWorld(true); const pts = [], v = new THREE.Vector3();
+  group.traverse(o => { if (!o.isMesh || !o.geometry.index || o.geometry.index.count < 100) return; const a = o.geometry.attributes.position, ix = o.geometry.index.array;
+    for (let i = 0, st = ix.length > 30000 ? 53 : 3; i < ix.length; i += st) { v.fromBufferAttribute(a, ix[i]).applyMatrix4(o.matrixWorld); pts.push(v.x, v.y, v.z); } });
+  chairPts = new Float32Array(pts);
 }).catch(e => console.warn('кресло не загрузилось', e));
 
 // ---------- РАБОТЫ В РАМАХ СО ШТАМПАМИ (её решение 31 окт: «вот там у нас 33 слезы стоит. Ты поставь фрагменты…
@@ -952,12 +961,16 @@ function placeCamera() {
   cam.projectionMatrixInverse.copy(cam.projectionMatrix).invert();
   SH.uDir.value.copy(dir); SH.uOrtho.value = ie > 0 ? 0 : 1;
   if (ie > 0) SH.uEye.value.copy(view.T).addScaledVector(dir, E);
-  const inside = ie > 0 && [0, 1, 2].every(k => { const v = SH.uEye.value.getComponent(k); return v > 0 && v < S; });
-  SH.uOutside.value = inside ? 0 : 1;
+  // снаружи → внутрь плавно (её слово 6 нояб.: «быстро меняет план между внутренней и передней частью»): было — щелчок
+  // в тот миг, как глаз пересёк стену (пунктир скрытого и толщина рёбер по глубине менялись разом); стало — по доле пути:
+  // от глаза до куба 80 % пути до точки взгляда → вошёл в стену (в щипке это около полутора раз приближения, не 6 %)
+  const outD = ie > 0 ? Math.hypot(...[0, 1, 2].map(k => { const v = SH.uEye.value.getComponent(k); return Math.max(0, -v, v - S); })) : Infinity;
+  const inside = outD === 0;
+  SH.uOutside.value = ie > 0 ? THREE.MathUtils.smoothstep(outD * ie, 0, 0.8) : 1;
   { let d0 = Infinity, d1 = -Infinity;                // ближний и дальний угол куба по взгляду
     for (const x of [0, S]) for (const y of [0, S]) for (const z of [0, S]) {
       const d = -((x - C.x) * dir.x + (y - C.y) * dir.y + (z - C.z) * dir.z); d0 = Math.min(d0, d); d1 = Math.max(d1, d); }
-    SH.uDepth.value.set(d0, d1, inside ? 0 : num('depth', 1) * THREE.MathUtils.smoothstep(view.H, 1.4, 3.5)); }
+    SH.uDepth.value.set(d0, d1, SH.uOutside.value * num('depth', 1) * THREE.MathUtils.smoothstep(view.H, 1.4, 3.5)); }
   // как глаз: резко у точки взгляда; размытие и шаг линий считаются в шейдерах по этим числам
   SH.uTgt.value.copy(view.T); SH.uH.value = view.H; SH.uInvE.value = ie;
 }
@@ -981,6 +994,11 @@ function anchorAt(nx, ny) {
     const t = (S - o[k]) / d[k], h = at(t), sAt = a.face === 'z' ? h.x : S - h.z;
     if (t > 0 && o[k] > S && sAt > a.s0 && sAt < a.s1 && h.y > a.y0 && h.y < a.y1) return h;
   }
+  // кресло под пальцами — приближаемся к нему (6 нояб.: было — к точке в воздухе на глубине работы, до кресла не дойти)
+  if (chairPts) { let best = Infinity; const q = new THREE.Vector3();
+    for (let i = 0; i < chairPts.length; i += 3) { q.set(chairPts[i], chairPts[i + 1], chairPts[i + 2]).sub(o); const t = q.dot(d);
+      if (t > 0 && t < best && q.lengthSq() - t * t < 0.03 * 0.03) best = t; }
+    if (best < Infinity) return at(best); }
   let t0 = -Infinity, t1 = Infinity;
   for (const k of ['x', 'y', 'z']) {
     if (Math.abs(d[k]) < 1e-9) { if (o[k] < 0 || o[k] > S) { t1 = -1; break; } continue; }
@@ -989,11 +1007,15 @@ function anchorAt(nx, ny) {
   t0 = Math.max(t0, 0);
   // глубина — как у работы (в сторону к ней не тянем: её слово 10 окт «не притягивать»)
   if (t1 > t0) return at(THREE.MathUtils.clamp(new THREE.Vector3(X_MID, (ART.y0 + ART.y1) / 2, ART.z).sub(o).dot(d), t0, t1));
-  if (d.y < -1e-6) return at(-o.y / d.y);
+  // мимо куба — в плоскости взгляда под пальцами (было — в пол где-то за кубом: «как будто вниз меня отсылает»)
+  const n = axes(view.az, view.el).dir, dn = d.dot(n);
+  if (Math.abs(dn) > 1e-6) { const t = view.T.clone().sub(o).dot(n) / dn; if (t > 0) return at(t); }
   return view.T.clone();
 }
-function settle() {
-  const k = THREE.MathUtils.smoothstep(view.H, 0.75 * Hfit, Hfit);   // отходишь — куб снова посередине
+function settle(back = false) {
+  // отходишь — куб снова посередине; только когда отходишь (6 нояб.: было и при приближении — первые щипки тянули
+  // к середине куба, и кресло под пальцами уезжало вниз)
+  const k = back ? THREE.MathUtils.smoothstep(view.H, 0.75 * Hfit, Hfit) : 0;
   if (k > 0) view.T.lerp(C, k);
   view.T.set(THREE.MathUtils.clamp(view.T.x, -0.5, S + 0.5), THREE.MathUtils.clamp(view.T.y, 0.05, S + 0.5), THREE.MathUtils.clamp(view.T.z, -0.5, S + 0.5));
 }
@@ -1002,7 +1024,7 @@ function zoomAt(nx, ny, f) {
   f = H / view.H; if (Math.abs(f - 1) < 1e-6) return;
   const a = anchorAt(nx, ny);
   view.T.sub(a).multiplyScalar(f).add(a); view.H = H;
-  touched = true; settle(); wake();
+  touched = true; settle(f > 1); wake();
 }
 function pan(dx, dy) {
   const { right, up } = axes(view.az, view.el), s = 2 * view.H / Hpx;
@@ -1029,7 +1051,7 @@ addEventListener('resize', resize);
 // ТРЕКПАД (её слово 30 окт: «на компьютере не вращается»): два пальца ведут — обойти, как пальцем на телефоне;
 // щипок — приблизить. Колесо мыши и трекпад отличаются по шагу: у колеса он кратен 120.
 const ptrs = new Map();
-let spin = { az: 0, el: 0, at: 0 }, inertia = null, pinch = null;
+let spin = { az: 0, el: 0, at: 0 }, inertia = null, pinch = null, wasPinch = false;   // wasPinch: после двух пальцев оставшийся не крутит
 const ndc = (x, y) => { const r = canvas.getBoundingClientRect(); return [(x - r.left) / r.width * 2 - 1, 1 - (y - r.top) / r.height * 2]; };
 canvas.addEventListener('pointerdown', e => {
   if (e.pointerType === 'mouse') e.preventDefault();   // без выделения и перетаскивания картинки браузером
@@ -1037,13 +1059,14 @@ canvas.addEventListener('pointerdown', e => {
   canvas.focus({ preventScroll: true });
   ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, pan: e.button === 1 || e.button === 2 || e.shiftKey });
   inertia = null; spin = { az: 0, el: 0, at: performance.now() };
-  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, d: Math.hypot(a.x - b.x, a.y - b.y) }; }
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, d: Math.hypot(a.x - b.x, a.y - b.y) }; wasPinch = true; }
   canvas.classList.add('grab');
 });
 addEventListener('pointermove', e => {            // на всё окно: ведёшь за край — куб всё равно крутится
   const p = ptrs.get(e.pointerId); if (!p) return;
   const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
   if (ptrs.size === 1) {
+    if (wasPinch) return;   // пальцы отпускают не разом — второй не должен докручивать куб (6 нояб.: «как-то улетает»)
     if (p.pan) { pan(dx, dy); return; }
     // палец через весь экран — 0,62 оборота (её слова 31 окт: было 0,8 — «слишком быстро раскручивается»; 0,5 — «туго немного»)
     const k = 1.25 * Math.PI / Hpx, daz = -dx * k, del = dy * k, now = performance.now(), dt = Math.max(1, now - spin.at) / 1000;
@@ -1062,6 +1085,7 @@ const lift = e => {
   if (ptrs.size === 1) spin = { az: 0, el: 0, at: performance.now() };
   if (ptrs.size === 0) {
     canvas.classList.remove('grab');
+    if (wasPinch) { wasPinch = false; return; }
     // докрутка — не быстрее 2,5 рад/с и гаснет быстрее прежнего
     const sp = Math.hypot(spin.az, spin.el), cap = Math.min(1, 2.5 / Math.max(sp, 1e-6));
     if (performance.now() - spin.at < 90 && sp > 0.15 && !reduceMotion) { inertia = { az: spin.az * cap, el: spin.el * cap }; wake(); }
