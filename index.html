@@ -756,12 +756,19 @@ const chairReady = P.get('kreslo') === '0' ? Promise.resolve() : import('./кр�
 // Под рамой, по её правому краю, через 40 мм — штамп (`штамп.js`). ?odna — только «Фрагменты»; ?all — прежняя развеска.
 // Тыл рамы — на 1 мм перед гранью, лист — на 10 мм: в плоскости грани её линии пробивали работу (её слово 31 окт).
 // Подписи — как на открытом сайте (там их утвердила она); «бумага Fabriano» — просто «бумага»: латиницы в шрифте нет.
+// 19 нояб. (её слово: «пока скрой все другие работы… пусть две вазы остаются… под двумя вазами… пусть будет пока вместо
+// маминой работы»): видны только кресло, «Две вазы» и «Князь Милош». Остальные не удалены — у них hide: true;
+// вернуть — снять hide. «Князь Милош» — серия «Секретики», 15 × 15, пока не продаётся: «скоро в продаже», «Купить» не
+// работает (soon). Рама — та же, что у «Первого моря» (проём 150 = 50 + 25·4); верх рамы — где был верх «Моря»
+// (1 985 мм): под штампом ваз те же 120 мм воздуха; середина — под вазами (s 4,06), левый край на сантиметровой линии.
 const HANG = [
-  { name: 'Фрагменты', face: 'z', s: 2.5, frames: [{ open: [0.76, 1.16], sheets: [{ img: 'фрагменты.webp', w: 0.76, h: 1.16 }] }],
+  { name: 'Князь Милош', face: 'z', s: 4.06, y: 1.575, frames: [{ open: [0.15, 0.15], sheets: [{ img: 'князь-милош.webp', w: 0.15, h: 0.15 }] }],
+    d: { title: 'КНЯЗЬ МИЛОШ', series: 'СЕРИЯ «СЕКРЕТИКИ»', author: 'АННА Д’АРЛЕТ', material: 'АКВАРЕЛЬ', size: '150 × 150', soon: true } },
+  { name: 'Фрагменты', hide: true, face: 'z', s: 2.5, frames: [{ open: [0.76, 1.16], sheets: [{ img: 'фрагменты.webp', w: 0.76, h: 1.16 }] }],
     d: { title: 'ФРАГМЕНТЫ', author: 'АННА Д’АРЛЕТ', material: 'АКВАРЕЛЬ, ТУШЬ, БУМАГА', size: '760 × 1160', price: '2 400 €' } },
-  { name: '33 слезы', face: 'z', s: 0.95, frames: [{ open: [0.50, 0.70], sheets: [{ img: 'слёзы.webp', w: 0.50, h: 0.70 }] }],
+  { name: '33 слезы', hide: true, face: 'z', s: 0.95, frames: [{ open: [0.50, 0.70], sheets: [{ img: 'слёзы.webp', w: 0.50, h: 0.70 }] }],
     d: { title: '33 СЛЕЗЫ', author: 'АННА Д’АРЛЕТ', material: 'ЧЕРНИЛА, БУМАГА', size: '500 × 700', price: '275 €' } },
-  { name: 'Первое море', face: 'z', s: 4.055, frames: [{ open: [0.75, 0.525], sheets: [{ img: 'painting.webp', w: 0.74, h: 0.52, dy: 0.0005 }] }],
+  { name: 'Первое море', hide: true, face: 'z', s: 4.055, frames: [{ open: [0.75, 0.525], sheets: [{ img: 'painting.webp', w: 0.74, h: 0.52, dy: 0.0005 }] }],
     d: { title: 'ПЕРВОЕ МОРЕ', author: 'МАТАНЯ', material: 'АКВАРЕЛЬ, БУМАГА', size: '740 × 520', price: '550 €' } },
   // «Две вазы» — каждая в своей овальной раме (её слово 31 окт: «овальные рамы именно»), профиль вдвое уже — по
   // размеру листа. Овал проёма 130 × 180 — по листу 125 × 175: сухарики закрывают рваный край, видна ваза (её слово:
@@ -776,11 +783,11 @@ const HANG = [
       { dx: 0.15, oval: true, ks: 0.5, open: [0.13, 0.18], sheets: [{ img: 'vase-2-face.webp', w: 0.125, h: 0.175, dx: 0.0005, dy: 0.0005 }] }],
     d: { title: 'ДВЕ ВАЗЫ', author: 'АННА Д’АРЛЕТ', material: 'АКВАРЕЛЬ, БУМАГА', size: '125 × 175', sheets: 2, price: '360 €' } },
   // проданы (её слово 31 окт: «домик у Маруси и у Степы, короче, проданы») — красный кружок вместо «КУПИТЬ»
-  { name: 'Бабулин дом', face: 'x', s: 1.1525, frames: [{ open: [0.425, 0.30], sheets: [{ img: 'babulin-dom-face.webp', w: 0.42, h: 0.30, dx: 0.0005 }] }],
+  { name: 'Бабулин дом', hide: true, face: 'x', s: 1.1525, frames: [{ open: [0.425, 0.30], sheets: [{ img: 'babulin-dom-face.webp', w: 0.42, h: 0.30, dx: 0.0005 }] }],
     d: { title: 'БАБУЛИН ДОМ,\nИЛИ ОСЕННИЙ ДОМИК', author: 'МАРУСЯ', material: 'ГУАШЬ, БУМАГА', size: '420 × 300', price: '5 000 РУБ.', sold: true } },
-  { name: 'Половики', face: 'x', s: 3.8525, frames: [{ open: [0.425, 0.30], sheets: [{ img: 'polovik-face.webp', w: 0.42, h: 0.30, dx: 0.0005 }] }],
+  { name: 'Половики', hide: true, face: 'x', s: 3.8525, frames: [{ open: [0.425, 0.30], sheets: [{ img: 'polovik-face.webp', w: 0.42, h: 0.30, dx: 0.0005 }] }],
     d: { title: 'ПОЛОВИКИ НА ЗАБОРЕ.\nСЕНТЯБРЬ', author: 'СТЕПА', material: 'ГУАШЬ, БУМАГА', size: '420 × 300', price: '5 000 РУБ.', sold: true } },
-].filter(w => !P.has('odna') || w.name === 'Фрагменты');
+].filter(w => !w.hide).filter(w => !P.has('odna') || w.name === 'Фрагменты');
 const WORK = { x: S / 2, y: 1.2 + 0.13 + 1.16 / 2 };   // «Фрагменты» — по ним снимок окружения для металла
 const BUY_URL = 'https://ig.me/m/bortnikova_and_daughters';   // как глаз на открытом сайте
 // место на грани: s — от левого края грани, как смотришь снаружи; передняя грань — вдоль x, правая — вдоль −z
@@ -835,7 +842,7 @@ const tearsReady = (async () => {
       const fr = buildFrame(THREE, { ...frameOpts, workW: ow, workH: oh, oval: !!f.oval, ks: f.ks || 1 });
       const fg2 = new THREE.Group(); fg2.position.set(f.dx || 0, fr.Ho / 2, 0);
       hangFrame(fg2, f, fr); g.add(fg2); frames.push(fr); myFrames.push(fr);
-      if (wk.name === 'Фрагменты') frameObj = fr;
+      if (wk.name === 'Фрагменты' || !frameObj) frameObj = fr;   // часы рам — по «Фрагментам», без них — по первой
       right = Math.max(right, (f.dx || 0) + fr.Wo / 2); left = Math.min(left, (f.dx || 0) - fr.Wo / 2); hiTop = Math.max(hiTop, fr.Ho);
     }
     // штамп: правый верхний угол — под правым нижним углом рамы, на 40 мм ниже; лицом наружу, как работа
@@ -861,7 +868,7 @@ const tearsReady = (async () => {
           ln.el.setAttribute('aria-label', framed ? 'Снять раму' : 'Вернуть раму'); wake();
         } };
       links.push(ln); }
-    if (!st.sold) {                                   // клетка «КУПИТЬ» — четыре угла в мире, для ссылки поверх
+    if (!st.sold && !st.soon) {                       // клетка «КУПИТЬ» (у «скоро в продаже» ссылки нет) — четыре угла в мире, для ссылки поверх
       const B = STAMP.BUY, k = STAMP.SC / 1000;
       links.push({ hover: on => st.hover(on), label: 'Купить — написать в Директ', normal: new THREE.Vector3(0, 0, 1).applyQuaternion(g.quaternion),
         corners: [[B.x0, B.y0], [B.x1, B.y0], [B.x1, B.y1], [B.x0, B.y1]].map(([x, y]) => new THREE.Vector3(sx + x * k, sy - y * k, 0.001).applyMatrix4(g.matrixWorld)) });
